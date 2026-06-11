@@ -194,7 +194,14 @@ function acquireStreamingAudio(): void {
 		const audio = new Audio(THINKING_STREAMING_AUDIO_URI);
 		audio.loop = true;
 		sharedStreamingAudio = audio;
-		audio.play().catch(() => { /* autoplay may be blocked; ignore */ });
+		audio.play().catch(e => {
+			// Autoplay may be blocked by the browser's user-gesture policy; that
+			// case is expected and ignored. Any other failure (e.g. the asset
+			// could not be loaded) is logged so it can be diagnosed.
+			if (!String(e?.message).includes('play() can only be initiated by a user gesture')) {
+				console.error('Error while playing chat streaming audio', e);
+			}
+		});
 	}
 }
 
