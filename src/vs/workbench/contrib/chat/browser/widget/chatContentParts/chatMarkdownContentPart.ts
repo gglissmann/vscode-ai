@@ -405,6 +405,12 @@ export class ChatMarkdownContentPart extends Disposable implements IChatContentP
 
 			store.add(wrapTablesWithScrollable(this.domNode, layoutParticipants));
 			dispose(reusableOutputCodeBlockRefs.values());
+
+			const helloText = $('span.chat-markdown-hello-text');
+			helloText.textContent = 'HELLO TEXT';
+			this.domNode.appendChild(helloText);
+
+
 		};
 
 		// Always render immediately

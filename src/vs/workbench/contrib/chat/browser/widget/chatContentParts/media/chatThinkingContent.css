@@ -314,6 +314,16 @@
 				color: var(--vscode-descriptionForeground);
 			}
 
+			> .chat-thinking-spinner-image {
+				position: absolute;
+				left: 5px;
+				top: 9px;
+				width: 12px;
+				height: 12px;
+				object-fit: contain;
+				pointer-events: none;
+			}
+
 			/* the default book icon has a pixel of space at the bottom */
 			> .chat-thinking-icon .codicon.codicon-book {
 				top: 10px;
@@ -462,6 +472,10 @@
 			}
 
 			> .chat-thinking-icon {
+				left: 0px;
+			}
+
+			> .chat-thinking-spinner-image {
 				left: 0px;
 			}
 		}
