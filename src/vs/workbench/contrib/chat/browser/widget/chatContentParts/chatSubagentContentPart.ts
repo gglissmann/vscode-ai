@@ -30,6 +30,7 @@ import { IChatMarkdownAnchorService } from './chatMarkdownAnchorService.js';
 import { CollapsibleListPool } from './chatReferencesContentPart.js';
 import { buildPhrasePool, createThinkingIcon, getToolInvocationIcon } from './chatThinkingContentPart.js';
 import { ChatToolInvocationPart } from './toolInvocationParts/chatToolInvocationPart.js';
+
 import './media/chatSubagentContent.css';
 
 const MAX_TITLE_LENGTH = 100;
@@ -304,8 +305,6 @@ export class ChatSubagentContentPart extends ChatCollapsibleContentPart implemen
 			return;
 		}
 		this.workingSpinnerElement = $('.chat-thinking-item.chat-thinking-spinner-item');
-		const spinnerIcon = createThinkingIcon(Codicon.circleFilled);
-		this.workingSpinnerElement.appendChild(spinnerIcon);
 		this.workingSpinnerLabel = $('span.chat-thinking-spinner-label');
 		this.workingSpinnerLabel.textContent = this.getRandomWorkingMessage();
 		this.workingSpinnerElement.appendChild(this.workingSpinnerLabel);

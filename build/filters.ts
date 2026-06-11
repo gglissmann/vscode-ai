@@ -44,6 +44,7 @@ export const unicodeFilter = Object.freeze<string[]>([
 	'!**/*.test.ts',
 	'!**/*.{d.ts,json,md}',
 	'!**/*.mp3',
+	'!**/*.wav',
 	'!**/*.tiff',
 	'!**/*.provisionprofile',
 
@@ -83,6 +84,7 @@ export const indentationFilter = Object.freeze<string[]>([
 	'!LICENSES.chromium.html',
 	'!**/LICENSE',
 	'!**/*.mp3',
+	'!**/*.wav',
 	'!src/vs/base/browser/dompurify/*',
 	'!src/vs/base/common/marked/marked.js',
 	'!src/vs/base/common/semver/semver.js',
@@ -177,6 +179,7 @@ export const copyrightFilter = Object.freeze<string[]>([
 	'!**/*.ico',
 	'!**/*.opus',
 	'!**/*.mp3',
+	'!**/*.wav',
 	'!**/*.icns',
 	'!**/*.xml',
 	'!**/*.sh',

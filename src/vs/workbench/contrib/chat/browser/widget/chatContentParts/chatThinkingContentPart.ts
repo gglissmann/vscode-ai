@@ -9,7 +9,7 @@ import { DomScrollableElement } from '../../../../../../base/browser/ui/scrollba
 import { ScrollbarVisibility } from '../../../../../../base/common/scrollable.js';
 import { IChatExternalEdit, IChatMarkdownContent, IChatTerminalToolInvocationData, IChatThinkingPart, IChatToolInvocation, IChatToolInvocationSerialized } from '../../../common/chatService/chatService.js';
 import { IChatContentPartRenderContext, IChatContentPart } from './chatContentParts.js';
-import { IChatRendererContent } from '../../../common/model/chatViewModel.js';
+import { IChatRendererContent, isResponseVM } from '../../../common/model/chatViewModel.js';
 import { ChatConfiguration, ThinkingDisplayMode } from '../../../common/constants.js';
 import { ChatTreeItem } from '../../chat.js';
 import { IInstantiationService } from '../../../../../../platform/instantiation/common/instantiation.js';
@@ -30,6 +30,8 @@ import { ThemeIcon } from '../../../../../../base/common/themables.js';
 import { Lazy } from '../../../../../../base/common/lazy.js';
 import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { DisposableMap, DisposableStore, IDisposable, MutableDisposable, toDisposable } from '../../../../../../base/common/lifecycle.js';
+import { FileAccess, Schemas } from '../../../../../../base/common/network.js';
+import { URI } from '../../../../../../base/common/uri.js';
 import { autorun, IReader } from '../../../../../../base/common/observable.js';
 import { CancellationTokenSource } from '../../../../../../base/common/cancellation.js';
 import { IChatMarkdownAnchorService } from './chatMarkdownAnchorService.js';
@@ -178,6 +180,64 @@ const TITLE_CACHE_STORAGE_KEY = 'chat.thinkingTitleCache';
 const TITLE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TITLE_CACHE_MAX_ENTRIES = 1000;
 
+const THINKING_STREAMING_AUDIO_URI = FileAccess.asBrowserUri('vs/workbench/contrib/chat/browser/widget/chatContentParts/media/test-sound.wav').toString(true);
+
+/**
+ * Resolves the audio source to play while a response is streaming. When the user
+ * has configured {@link ChatConfiguration.ThinkingAudioPath} with a local `file://`
+ * URL, that file is used; otherwise the built-in sound is returned. Non-local
+ * URLs (for example `http`/`https`) are rejected.
+ */
+function getStreamingAudioUri(configurationService: IConfigurationService): string {
+	const configured = configurationService.getValue<string>(ChatConfiguration.ThinkingAudioPath);
+	if (typeof configured === 'string' && configured.trim().length > 0) {
+		try {
+			const uri = URI.parse(configured.trim());
+			if (uri.scheme === Schemas.file) {
+				return FileAccess.uriToBrowserUri(uri).toString(true);
+			}
+		} catch {
+			// Fall back to the built-in sound if the URL cannot be parsed.
+		}
+	}
+	return THINKING_STREAMING_AUDIO_URI;
+}
+
+// A single shared looping audio is used while any chat response is streaming.
+// Multiple thinking parts can be live within one response, so the audio is
+// reference counted: it starts on the first acquire and stops once the last
+// streaming participant releases it (when the response completes or is torn down).
+let sharedStreamingAudio: HTMLAudioElement | undefined;
+let sharedStreamingAudioRefs = 0;
+
+function acquireStreamingAudio(audioUri: string): void {
+	sharedStreamingAudioRefs++;
+	if (!sharedStreamingAudio) {
+		const audio = new Audio(audioUri);
+		audio.loop = true;
+		sharedStreamingAudio = audio;
+		audio.play().catch(e => {
+			// Autoplay may be blocked by the browser's user-gesture policy; that
+			// case is expected and ignored. Any other failure (e.g. the asset
+			// could not be loaded) is logged so it can be diagnosed.
+			if (!String(e?.message).includes('play() can only be initiated by a user gesture')) {
+				console.error('Error while playing chat streaming audio', e);
+			}
+		});
+	}
+}
+
+function releaseStreamingAudio(): void {
+	if (sharedStreamingAudioRefs === 0) {
+		return;
+	}
+	sharedStreamingAudioRefs--;
+	if (sharedStreamingAudioRefs === 0 && sharedStreamingAudio) {
+		sharedStreamingAudio.pause();
+		sharedStreamingAudio = undefined;
+	}
+}
+
 const enum WorkingMessageCategory {
 	Thinking = 'thinking',
 	Terminal = 'terminal',
@@ -306,6 +366,8 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 	private hasExpandedOnce: boolean = false;
 	private workingSpinnerElement: HTMLElement | undefined;
 	private workingSpinnerLabel: HTMLElement | undefined;
+	private hasAcquiredStreamingAudio: boolean = false;
+	private readonly streamingAudioCompletionListener = this._register(new MutableDisposable<IDisposable>());
 	private availableMessagesByCategory = new Map<WorkingMessageCategory, string[]>();
 	private readonly toolWrappersByCallId = new Map<string, HTMLElement>();
 	private readonly toolIconsByCallId = new Map<string, HTMLElement>();
@@ -428,6 +490,7 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 			if (!this.fixedScrollingMode) {
 				node.classList.add('chat-thinking-active');
 			}
+			this.startStreamingAudio();
 		}
 
 		if (!this.fixedScrollingMode && !this.streamingCompleted && !this.element.isComplete && this._collapseButton) {
@@ -544,6 +607,8 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 			this.renderMarkdown(this.currentThinkingValue);
 		}
 
+
+
 		// Show the in-thinking spinner while streaming. When collapsed, the CSS
 		// clipping hides it (the title shimmer is the visible indicator). When
 		// expanded, the title shimmer is less prominent so this spinner at the
@@ -552,8 +617,6 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 		// active indicator instead, so skip creating the in-thinking spinner.
 		if (!this.streamingCompleted && !this.element.isComplete && !(this.fixedScrollingMode && this.showProgressDetails)) {
 			this.workingSpinnerElement = $('.chat-thinking-item.chat-thinking-spinner-item');
-			const spinnerIcon = createThinkingIcon(Codicon.circleFilled);
-			this.workingSpinnerElement.appendChild(spinnerIcon);
 			this.workingSpinnerLabel = $('span.chat-thinking-spinner-label');
 			this.workingSpinnerLabel.textContent = this.getRandomWorkingMessage(WorkingMessageCategory.Thinking);
 			this.workingSpinnerElement.appendChild(this.workingSpinnerLabel);
@@ -951,6 +1014,35 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 
 	public resetId(): void {
 		this.id = undefined;
+	}
+
+	private startStreamingAudio(): void {
+		if (this.hasAcquiredStreamingAudio || this.streamingCompleted || this.element.isComplete) {
+			return;
+		}
+		this.hasAcquiredStreamingAudio = true;
+		acquireStreamingAudio(getStreamingAudioUri(this.configurationService));
+
+		// Keep the audio playing across the whole response (thinking and the
+		// streamed answer), stopping only once the response itself completes.
+		const element = this.element;
+		if (isResponseVM(element)) {
+			const responseModel = element.model;
+			this.streamingAudioCompletionListener.value = responseModel.onDidChange(() => {
+				if (responseModel.isComplete) {
+					this.stopStreamingAudio();
+				}
+			});
+		}
+	}
+
+	private stopStreamingAudio(): void {
+		if (!this.hasAcquiredStreamingAudio) {
+			return;
+		}
+		this.hasAcquiredStreamingAudio = false;
+		this.streamingAudioCompletionListener.clear();
+		releaseStreamingAudio();
 	}
 
 	public collapseContent(): void {
@@ -2237,6 +2329,7 @@ ${this.hookCount > 0 ? `EXAMPLES WITH BLOCKED CONTENT (from hooks):
 
 	override dispose(): void {
 		this.isActive = false;
+		this.stopStreamingAudio();
 		if (this.workingSpinnerElement) {
 			this.workingSpinnerElement.remove();
 			this.workingSpinnerElement = undefined;

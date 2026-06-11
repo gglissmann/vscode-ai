@@ -47,6 +47,7 @@ export enum ChatConfiguration {
 	SimpleTerminalCollapsible = 'chat.tools.terminal.simpleCollapsible',
 	CompressOutputEnabled = 'chat.tools.compressOutput.enabled',
 	ThinkingPhrases = 'chat.agent.thinking.phrases',
+	ThinkingAudioPath = 'chat.agent.thinking.audioPath',
 	AutoExpandToolFailures = 'chat.tools.autoExpandFailures',
 	TodosShowWidget = 'chat.tools.todos.showWidget',
 	NotifyWindowOnConfirmation = 'chat.notifyWindowOnConfirmation',

@@ -405,6 +405,8 @@ export class ChatMarkdownContentPart extends Disposable implements IChatContentP
 
 			store.add(wrapTablesWithScrollable(this.domNode, layoutParticipants));
 			dispose(reusableOutputCodeBlockRefs.values());
+
+			// <After each markdown render>
 		};
 
 		// Always render immediately
