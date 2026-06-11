@@ -179,8 +179,6 @@ const TITLE_CACHE_STORAGE_KEY = 'chat.thinkingTitleCache';
 const TITLE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TITLE_CACHE_MAX_ENTRIES = 1000;
 
-const THINKING_SPINNER_IMAGE_URI = FileAccess.asBrowserUri('vs/workbench/contrib/chat/browser/widget/chatContentParts/media/load.png').toString(true);
-
 const THINKING_STREAMING_AUDIO_URI = FileAccess.asBrowserUri('vs/workbench/contrib/chat/browser/widget/chatContentParts/media/test-sound.wav').toString(true);
 
 // A single shared looping audio is used while any chat response is streaming.
@@ -590,17 +588,9 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 		// active indicator instead, so skip creating the in-thinking spinner.
 		if (!this.streamingCompleted && !this.element.isComplete && !(this.fixedScrollingMode && this.showProgressDetails)) {
 			this.workingSpinnerElement = $('.chat-thinking-item.chat-thinking-spinner-item');
-			const spinnerImage = $<HTMLImageElement>('img.chat-thinking-spinner-image');
-			spinnerImage.src = THINKING_SPINNER_IMAGE_URI;
-			spinnerImage.alt = '';
-			spinnerImage.setAttribute('aria-hidden', 'true');
-			this.workingSpinnerElement.appendChild(spinnerImage);
 			this.workingSpinnerLabel = $('span.chat-thinking-spinner-label');
 			this.workingSpinnerLabel.textContent = this.getRandomWorkingMessage(WorkingMessageCategory.Thinking);
 			this.workingSpinnerElement.appendChild(this.workingSpinnerLabel);
-			const helloLabel = $('span.chat-thinking-hello-garrett');
-			helloLabel.textContent = 'HELLO Garrett';
-			this.workingSpinnerElement.appendChild(helloLabel);
 			this.wrapper.appendChild(this.workingSpinnerElement);
 			this.updateWorkingSpinnerVisibility();
 		}

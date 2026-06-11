@@ -10,7 +10,6 @@ import { MarkdownString } from '../../../../../../base/common/htmlContent.js';
 import { Lazy } from '../../../../../../base/common/lazy.js';
 import { IRenderedMarkdown } from '../../../../../../base/browser/markdownRenderer.js';
 import { DisposableStore, IDisposable, MutableDisposable } from '../../../../../../base/common/lifecycle.js';
-import { FileAccess } from '../../../../../../base/common/network.js';
 import { autorun } from '../../../../../../base/common/observable.js';
 import { rcut } from '../../../../../../base/common/strings.js';
 import { localize } from '../../../../../../nls.js';
@@ -32,7 +31,6 @@ import { CollapsibleListPool } from './chatReferencesContentPart.js';
 import { buildPhrasePool, createThinkingIcon, getToolInvocationIcon } from './chatThinkingContentPart.js';
 import { ChatToolInvocationPart } from './toolInvocationParts/chatToolInvocationPart.js';
 
-const SUBAGENT_SPINNER_IMAGE_URI = FileAccess.asBrowserUri('vs/workbench/contrib/chat/browser/widget/chatContentParts/media/load.png').toString(true);
 import './media/chatSubagentContent.css';
 
 const MAX_TITLE_LENGTH = 100;
@@ -307,11 +305,6 @@ export class ChatSubagentContentPart extends ChatCollapsibleContentPart implemen
 			return;
 		}
 		this.workingSpinnerElement = $('.chat-thinking-item.chat-thinking-spinner-item');
-		const spinnerImage = $<HTMLImageElement>('img.chat-subagent-spinner-image');
-		spinnerImage.src = SUBAGENT_SPINNER_IMAGE_URI;
-		spinnerImage.alt = '';
-		spinnerImage.setAttribute('aria-hidden', 'true');
-		this.workingSpinnerElement.appendChild(spinnerImage);
 		this.workingSpinnerLabel = $('span.chat-thinking-spinner-label');
 		this.workingSpinnerLabel.textContent = this.getRandomWorkingMessage();
 		this.workingSpinnerElement.appendChild(this.workingSpinnerLabel);

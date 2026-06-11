@@ -61,16 +61,6 @@
 		}
 	}
 
-	.chat-thinking-spinner-item > .chat-subagent-spinner-image {
-		position: absolute;
-		left: 5px;
-		top: 9px;
-		width: 12px;
-		height: 12px;
-		object-fit: contain;
-		pointer-events: none;
-	}
-
 	button.chat-subagent-confirmation-placeholder {
 		display: flex;
 		align-items: center;
