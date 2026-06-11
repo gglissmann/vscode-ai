@@ -1687,6 +1687,12 @@ configurationRegistry.registerConfiguration({
 			markdownDescription: nls.localize('chat.agent.thinking.phrases', "Customize the loading messages shown during agent thinking and progress indicators. Use `\"mode\": \"replace\"` to use only your phrases, or `\"mode\": \"append\"` to add them to the defaults."),
 			tags: ['experimental'],
 		},
+		[ChatConfiguration.ThinkingAudioPath]: {
+			type: 'string',
+			default: '',
+			markdownDescription: nls.localize('chat.agent.thinking.audioPath', "Local `file://` URL of an audio file (for example a `.wav` or `.mp3`) to play on a loop while a chat response is streaming. Only local files are supported. Leave empty to use the built-in sound."),
+			tags: ['experimental'],
+		},
 		[ChatConfiguration.AutoExpandToolFailures]: {
 			type: 'boolean',
 			default: true,

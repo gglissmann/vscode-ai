@@ -30,7 +30,8 @@ import { ThemeIcon } from '../../../../../../base/common/themables.js';
 import { Lazy } from '../../../../../../base/common/lazy.js';
 import { Emitter, Event } from '../../../../../../base/common/event.js';
 import { DisposableMap, DisposableStore, IDisposable, MutableDisposable, toDisposable } from '../../../../../../base/common/lifecycle.js';
-import { FileAccess } from '../../../../../../base/common/network.js';
+import { FileAccess, Schemas } from '../../../../../../base/common/network.js';
+import { URI } from '../../../../../../base/common/uri.js';
 import { autorun, IReader } from '../../../../../../base/common/observable.js';
 import { CancellationTokenSource } from '../../../../../../base/common/cancellation.js';
 import { IChatMarkdownAnchorService } from './chatMarkdownAnchorService.js';
@@ -181,6 +182,27 @@ const TITLE_CACHE_MAX_ENTRIES = 1000;
 
 const THINKING_STREAMING_AUDIO_URI = FileAccess.asBrowserUri('vs/workbench/contrib/chat/browser/widget/chatContentParts/media/test-sound.wav').toString(true);
 
+/**
+ * Resolves the audio source to play while a response is streaming. When the user
+ * has configured {@link ChatConfiguration.ThinkingAudioPath} with a local `file://`
+ * URL, that file is used; otherwise the built-in sound is returned. Non-local
+ * URLs (for example `http`/`https`) are rejected.
+ */
+function getStreamingAudioUri(configurationService: IConfigurationService): string {
+	const configured = configurationService.getValue<string>(ChatConfiguration.ThinkingAudioPath);
+	if (typeof configured === 'string' && configured.trim().length > 0) {
+		try {
+			const uri = URI.parse(configured.trim());
+			if (uri.scheme === Schemas.file) {
+				return FileAccess.uriToBrowserUri(uri).toString(true);
+			}
+		} catch {
+			// Fall back to the built-in sound if the URL cannot be parsed.
+		}
+	}
+	return THINKING_STREAMING_AUDIO_URI;
+}
+
 // A single shared looping audio is used while any chat response is streaming.
 // Multiple thinking parts can be live within one response, so the audio is
 // reference counted: it starts on the first acquire and stops once the last
@@ -188,10 +210,10 @@ const THINKING_STREAMING_AUDIO_URI = FileAccess.asBrowserUri('vs/workbench/contr
 let sharedStreamingAudio: HTMLAudioElement | undefined;
 let sharedStreamingAudioRefs = 0;
 
-function acquireStreamingAudio(): void {
+function acquireStreamingAudio(audioUri: string): void {
 	sharedStreamingAudioRefs++;
 	if (!sharedStreamingAudio) {
-		const audio = new Audio(THINKING_STREAMING_AUDIO_URI);
+		const audio = new Audio(audioUri);
 		audio.loop = true;
 		sharedStreamingAudio = audio;
 		audio.play().catch(e => {
@@ -999,7 +1021,7 @@ export class ChatThinkingContentPart extends ChatCollapsibleContentPart implemen
 			return;
 		}
 		this.hasAcquiredStreamingAudio = true;
-		acquireStreamingAudio();
+		acquireStreamingAudio(getStreamingAudioUri(this.configurationService));
 
 		// Keep the audio playing across the whole response (thinking and the
 		// streamed answer), stopping only once the response itself completes.
